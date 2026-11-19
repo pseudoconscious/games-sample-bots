@@ -1,0 +1,7 @@
+{
+  "bot": "bot.js",
+  "settings": {
+    "slow": true,
+    "rearGuard": true
+  }
+}

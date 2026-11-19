@@ -1,0 +1,7 @@
+{
+  "bot": "bot.js",
+  "settings": {
+    "hunt": true,
+    "range": 2600
+  }
+}

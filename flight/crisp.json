@@ -1,0 +1,6 @@
+{
+  "bot": "bot.js",
+  "settings": {
+    "style": "crisp"
+  }
+}

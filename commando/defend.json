@@ -1,0 +1,7 @@
+{
+  "bot": "bot.js",
+  "settings": {
+    "guards": 99,
+    "quietSeconds": 1000000000
+  }
+}
