@@ -21,7 +21,9 @@ const SIEGE_RADIUS = 4;   // tiles from an enemy base: just outside its fort's b
 const SIEGE_SPOTS = 12;
 // The conga line
 const CRAZY = true;
-const CONGA_GAP = 1.6;      // tiles between one unit and the next
+const CONGA_GAP = 1.0;      // tiles between one unit and the next
+const CONGA_WAIT = 4;       // tiles: a unit waits while the one behind it is further back
+const CONGA_PACE = 0.6;     // the head's speed, a share of full: the others keep up behind it
 const CONGA_INSET = 14;     // tiles in from a map's edge: the square the head walks round each map
 const CONGA_CALLS = ['advance', 'contact', 'hold', 'retreat'];
 const IDLE = { move: 'stop', strafe: 'none', turn: 'none', fire: false };
@@ -609,6 +611,7 @@ function think(team, obs) {
    * the others follows the one in front. All still shoot what they meet, and the base in reach.
    * Commandos call out orders.
    */
+  let congaPace = false;   // set for the head while it walks: it goes at CONGA_PACE
   const conga = () => {
     // The line in joining order: a unit that falls leaves it, a unit that comes back joins the tail
     team.conga = (team.conga || []).filter(m => standing.includes(m));
@@ -632,10 +635,13 @@ function think(team, obs) {
         fireOk = true;
       }
     }
+    // Wait while the unit behind has fallen back (passed down the line, so the line holds together)
+    const behind = obs.team.find(m => m.unit === line[place + 1]);
+    const waiting = !!behind && hypot(behind.x - me.x, behind.y - me.y) / T > CONGA_WAIT;
     if (place > 0) {
       // Follow the unit in front, a little behind
       const ahead = obs.team.find(m => m.unit === line[place - 1]);
-      if (!ahead) return;
+      if (!ahead || waiting) return;
       const d = hypot(ahead.x - me.x, ahead.y - me.y) / T;
       if (d <= CONGA_GAP) return;
       const at = [Math.floor(ahead.x / T), Math.floor(ahead.y / T)];
@@ -668,12 +674,11 @@ function think(team, obs) {
     }
     if (!stops.length) return;
     if (!team.congaStop || team.congaStop.length !== stops.length) team.congaStop = { at: 0, length: stops.length };
-    // Wait when the unit behind has fallen far back
-    const next = obs.team.find(m => m.unit === line[1]);
-    if (next && hypot(next.x - me.x, next.y - me.y) / T > 5) {
+    if (waiting) {
       call('hold', 5);
       return;
     }
+    congaPace = true;
     for (let tries = 0; tries < stops.length; tries++) {
       const stop = stops[team.congaStop.at % stops.length];
       if (Math.max(Math.abs(stop[0] - myTile[0]), Math.abs(stop[1] - myTile[1])) > 1 && go(stop, 1)) break;
@@ -907,6 +912,12 @@ function think(team, obs) {
     if (near.length >= 2 || (near.length === 1 && me.hp < me.maxHp * 0.6)) act.roar = true;
     // and to send a nest's snake back into its hole
     if (obs.bases.some(b => !b.mine && snakeOut(b) && hypot(b.x - me.x, b.y - me.y) < (rules.roarRadius ?? 240) * 0.9)) act.roar = true;
+  }
+  // The head walks slower than the rest of the line
+  if (congaPace) {
+    const pace = v => (v === 'forward' || v === 'right' ? CONGA_PACE : v === 'backward' || v === 'left' ? -CONGA_PACE : v);
+    if (act.move !== 'stop') act.move = pace(act.move);
+    if (act.strafe !== 'none') act.strafe = pace(act.strafe);
   }
   return act;
 }
